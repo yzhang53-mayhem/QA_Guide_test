@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q&A 検索ナビゲーション</title>
+    <style>
+        /* --- CSS Variables & Reset --- */
+        :root {
+            --primary: #3b82f6; /* Blue 500 */
+            --primary-dark: #2563eb; /* Blue 600 */
+            --bg-body: #f9fafb; /* Gray 50 */
+            --bg-card: #ffffff;
+            --text-main: #1f2937; /* Gray 800 */
+            --text-muted: #6b7280; /* Gray 500 */
+            --border: #e5e7eb; /* Gray 200 */
+            --highlight: #fef08a; /* Yellow 200 */
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --radius: 0.5rem;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --header-height: 70px;
+            --sidebar-width: 260px;
+        }
+
+        /* Dark Mode colors */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-body: #111827; /* Gray 900 */
+                --bg-card: #1f2937; /* Gray 800 */
+                --text-main: #f3f4f6; /* Gray 100 */
+                --text-muted: #9ca3af; /* Gray 400 */
+                --border: #374151; /* Gray 700 */
+                --highlight: #854d0e; /* Yellow 800 */
+                --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow: hidden; 
+        }
+
+        /* --- Layout --- */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* --- Header --- */
+        header {
+            height: var(--header-height);
+            background-color: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 40;
+            box-shadow: var(--shadow);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .search-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.75rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        #searchInput:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            background-color: var(--bg-card);
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-main);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        /* --- Main Content Layout --- */
+        .main-wrapper {
+            display: flex;
+            flex: 1;
+            margin-top: var(--header-height);
+            overflow: hidden;
+        }
+
+        /* --- Sidebar --- */
+        aside {
+            width: var(--sidebar-width);
+            background-color: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            overflow-y: auto;
+            transition: var(--transition);
+            z-index: 30;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        .category-list {
+            list-style: none;
+        }
+
+        .category-item {
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-main);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+
+        .category-item:hover {
+            background-color: var(--bg-body);
+        }
+
+        .category-item.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .category-item.active {
+                background-color: rgba(59, 130, 246, 0.2);
+            }
+        }
+
+        .category-count {
+            font-size: 0.75rem;
+            background-color: var(--border);
+            color: var(--text-muted);
+            padding: 0.1rem 0.5rem;
+            border-radius: 9999px;
+        }
+        
+        .category-item.active .category-count {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        /* --- Content Area --- */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            scroll-behavior: smooth;
+        }
+
+        .content-header {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #resultStats {
+            color: var(--text-muted);
+        }
+
+        /* --- QA Cards --- */
+        .qa-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .qa-card {
+            background-color: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+            overflow: hidden;
+        }
+
+        .qa-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-2px);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .qa-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            background-color: rgba(0,0,0,0.01);
+            display: flex;
+            align-items: start;
+            gap: 1rem;
+        }
+        
+        @media (prefers-color-scheme: dark) {
+            .qa-header { background-color: rgba(255,255,255,0.01); }
+        }
+
+        .question-icon {
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.25rem;
+            margin-top: 0.1rem;
+        }
+
+        .qa-question {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            flex: 1;
+        }
+
+        .qa-body {
+            padding: 1.5rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .answer-icon {
+            color: var(--text-muted);
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+
+        .qa-answer {
+            color: var(--text-main);
+            white-space: pre-wrap;
+            flex: 1;
+        }
+        
+        .qa-footer {
+            padding: 0.75rem 1.5rem;
+            background-color: var(--bg-body);
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .qa-breadcrumb {
+            display: inline-flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .qa-breadcrumb span::after {
+            content: " > ";
+            color: var(--border);
+        }
+        .qa-breadcrumb span:last-child::after {
+            content: "";
+        }
+
+        /* Highlight style */
+        mark {
+            background-color: var(--highlight);
+            color: inherit;
+            border-radius: 2px;
+            padding: 0 2px;
+        }
+
+        /* No Results */
+        .no-results {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+            background-color: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .no-results-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        /* --- Responsive Styles --- */
+        @media (max-width: 768px) {
+            :root {
+                --sidebar-width: 100%;
+            }
+            header { padding: 0 1rem; }
+            .brand span { display: none; }
+            @media (min-width: 400px) { .brand span { display: inline; } }
+            .menu-toggle { display: block; margin-right: 0.5rem; }
+            aside {
+                position: fixed; top: var(--header-height); left: -100%;
+                height: calc(100vh - var(--header-height)); box-shadow: var(--shadow-lg); border-right: none;
+            }
+            aside.open { left: 0; }
+            main { padding: 1rem; }
+            .content-header { flex-direction: column; align-items: start; gap: 0.5rem; margin-bottom: 1rem; }
+            .qa-header, .qa-body { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div style="display: flex; align-items: center;">
+            <button class="menu-toggle" id="menuToggle" aria-label="Toggle Menu">☰</button>
+            <div class="brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                <span>QA マニュアル</span>
+            </div>
+        </div>
+        
+        <div class="search-wrapper">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Enter Keyword (例: タイムセール, クーポン)..." aria-label="搜索">
+        </div>
+    </header>
+
+    <div class="main-wrapper">
+        <aside id="sidebar">
+            <h2 class="sidebar-title">分類 (Menu)</h2>
+            <ul class="category-list" id="categoryList">
+                </ul>
+        </aside>
+
+        <main id="mainContent">
+            <div class="content-header">
+                <h1 id="currentCategoryTitle">すべて</h1>
+                <div id="resultStats">読み込み中...</div>
+            </div>
+
+            <div class="qa-grid" id="qaGrid">
+                </div>
+        </main>
+    </div>
+</div>
+
+<script>
+    // --- データをここに埋め込みました ---
+    const rawData = [
+  {
+    "id": "0001",
+    "cat1": "プロモーション",
+    "cat2": "タイムセール",
+    "cat3": "設定",
+    "question": "タイムセール設定の上限",
+    "answer": "通常のタイムセールの設定には上限はありません。\nタイムセールの有料枠は各タイムゾーンごとに上限枠数が決まっており、埋まってしまっている場合は申請できません。\nタイムゾーン選択時に全体数の確認ができるので、そちらから確認いただくようにご案内お願いいたします。\n",
+    "img": ""
+  },
+  {
+    "id": "0002",
+    "cat1": "プロモーション",
+    "cat2": "タイムセール",
+    "cat3": "設定",
+    "question": "タイムセール割引設定の上限",
+    "answer": "同じ商品1個につきタイムセール割引設定は最大90個まで可能です\nタイムセール割引は１商品につき90個まで設定可能で、一括登録時にその90個の上限を超えたので設定不可、個別設定で解決されたとのことですが、その時点では最大個数90個を超過しなかったので、正常に登録できたと推測されるそうです。",
+    "img": ""
+  },
+  {
+    "id": "0003",
+    "cat1": "プロモーション",
+    "cat2": "タイムセール",
+    "cat3": "掲載",
+    "question": "タイムセール掲載回数上限",
+    "answer": "掲載回数制限として、タイムセールプレミアムは同一商品は月10回まで、全商品で月300回までとなっており、\nスタンダードの場合、同一商品は月15回、全商品で300回までとなっております。\n※タイムセール有料枠は5000件ではなく、0~10時が320枠、10~17時が410枠、17~24時が410枠ほどとなっております。状況により変更になる場合あり。",
+    "img": ""
+  },
+  {
+    "id": "0004",
+    "cat1": "プロモーション",
+    "cat2": "タイムセール",
+    "cat3": "割引",
+    "question": "タイムセール割引未適用\nメガ割期間",
+    "answer": "メガワリ期間中は、トラフィック集中対策として、通常のショッピングカートではなく「簡素化版ショッピングカート」が使用されています。\n簡素化版ショッピングカートでは、商品をカートに入れた後に価格や割引条件が変更された場合でも、割引後の価格が自動的に再計算・反映されない仕様となっています。\nそのため、本件ではタイムセール開始前に商品をカートに入れ、セール開始後に決済を行った結果、カート投入時点の金額を基準に注文処理が行われました。\n\nなお、ショッピングカート簡素化版は、令和2年11月より導入され、令和2年7月に一度中止されましたが、DB負荷の悪化を背景に、2024年11月より再び適用されております。\n現在はメガワリ期間中のみ使用される仕様となっております。\n（※タイムセール前にカートへ投入し、タイムセール開始後に決済した場合でも、割引は自動的に再計算されません。）",
+    "img": ""
+  },
+  {
+    "id": "0005",
+    "cat1": "プロモーション",
+    "cat2": "キーワード入札",
+    "cat3": "基準",
+    "question": "1) 入札現況板の順位基準\n2) 入札現況板の順位更新タイミング\n3) Qoo10 メインページ下部 > 人気キーワード/ ホットトレンドのランキング更新タイミング",
+    "answer": "1)週間平均/日が多い順に順位決定\n2)毎日午前2時\n3)毎日06時~21時までの3時間間隔(06時、09時、12時、15時、18時、21時)\n",
+    "img": ""
+  },
+  {
+    "id": "0006",
+    "cat1": "プロモーション",
+    "cat2": "キーワード入札",
+    "cat3": "定義",
+    "question": "人気キーワード",
+    "answer": "メガワリ期間の直近1週間は「広告申請開始日基準直近1週間」が目安になります。\n人気キーワードでは、従来通り最近1週間基準で集計されたものなので、データが異なります。\n広告申請開始日基準で最近1週間のキーワード平均PVと直前四半期のメガ割引期間のキーワード平均PVを考慮して平均値を抽出し「既存入札開始価格*成長平均値」で入札開始価格を算定するためです。",
+    "img": ""
+  },
+  {
+    "id": "0007",
+    "cat1": "プロモーション",
+    "cat2": "キーワード入札",
+    "cat3": "基準",
+    "question": "入札と露出",
+    "answer": "15日はメガ割の開始日ですので、15日の展示に関しては14時50分が入札締切となります。締切直前に修正を行った場合、正常に反映されなかった可能性がありますが、入札や価格修正に関するシステムエラーは発生していなかったため、時間差による修正ができなかったと思われます。ご案内をお願い致します。",
+    "img": ""
+  },
+  {
+    "id": "0008",
+    "cat1": "Megaプロモーション",
+    "cat2": "MegaAD",
+    "cat3": "ルール",
+    "question": "参加申請",
+    "answer": "本日メガ割プロモーションへの参加申し込みをした場合、当日はMegaADの申し込みができません。\nシステムで毎日午前1時に参加申請データが一括アップデートされるため、参加申請翌日の午前1時頃からMegaAD広告申請画面で商品が照会されます。\nMegaAD申請オープン日にすぐ申請が可能になるためには、申請オープン日の前日にはプロモーション参加申請が完了していなければならない点の案内をお願いします。",
+    "img": ""
+  },
+  {
+    "id": "0009",
+    "cat1": "Megaプロモーション",
+    "cat2": "メガポ",
+    "cat3": "ルール",
+    "question": "参加申請",
+    "answer": "メガポ参加締め切りが6月26日までですが、参加期間中は、毎日早朝にメガポ参加対象商品を集計しており、集計時にS2状態でなければ、現在のS2状態でも商品が照会されません。\nこのような場合、次の日に照会すると、正常に参加対象商品に含まれるので、この点を参考にしていただければと思います。",
+    "img": ""
+  },
+  {
+    "id": "0010",
+    "cat1": "Megaプロモーション",
+    "cat2": "メガ割",
+    "cat3": "システム仕様",
+    "question": "トラフィックに備える",
+    "answer": "メガ割トラフィックに備えて、\n特定期間中、モバイルとCart画面で一部領域の露出を除く簡素化運営を行いました。\n運用予定時間：2024年11月15日午後1時~安定化する時刻まで\n今確認したところ、特集ページは既に反映されています。ご案内をお願い致します。",
+    "img": ""
+  },
+  {
+    "id": "0011",
+    "cat1": "プロモーション",
+    "cat2": "共同購入",
+    "cat3": "システム仕様",
+    "question": "1）配送管理データの表示有無について\n2）自動成立「いいえ」により自動キャンセルされた場合のサービスポイントについて",
+    "answer": "1）自動成立：はい　通常の注文と同様に、配送依頼グリッドに表示されます。\n自動成立：保留　決済後すぐに発注されることはなく、成立数量達成後に一括で発注され、配送依頼グリッドに表示されます。\n自動成立：いいえ　成立数量未達の場合は自動キャンセルとなるため、配送依頼データは生成されません。なお、成立数量を達成した場合は、通常の注文と同様に配送依頼グリッドに表示されます。\n2）成立数量未達により発生する自動キャンセルは、システム上「共同購入未達成による自動キャンセル」として処理されます。\n運用基準上、自動キャンセルは販売者都合による直接キャンセルとは異なり、\nシステムキャンセルとして扱われるため、サービスポイントの減点対象にはなりません。\nただし、保留状態のまま販売者が個別にキャンセル処理を行った場合は、\n「販売者都合」として集計され、サービスポイントが減点される可能性があります。",
+    "img": ""
+  },
+  {
+    "id": "0012",
+    "cat1": "プロモーション",
+    "cat2": "Newプロモーション",
+    "cat3": "設定",
+    "question": " Newプロモーション ＞「特集ページの設定」をクリックし、\nステップ2：Newプロモーションにクーポンを設定 の項目において、設定済みのショップクーポンがすべて表示されない",
+    "answer": "表示されるクーポンは、クーポン作成後にイベント登録が行われたクーポンのみが対象となり、\nあわせて イベントのステータスが「進行中」または「進行待機」 のもののみが読み込まれる仕様となっております。",
+    "img": ""
+  },
+  {
+    "id": "0013",
+    "cat1": "外部広告",
+    "cat2": "外部広告",
+    "cat3": "定義",
+    "question": "QアフィリエイトとAffiliate（アフィリエイト）",
+    "answer": "■ Qアフィリエイト\nQoo10が提供しているアフィリエイトプログラムです。\nQoo10会員が自身のブログなどのコンテンツで商品を紹介することで、所定の報酬が発生する仕組みとなっております。\n参考リンク： Qアフィリエイトのご案内（Qoo10公式）\n■ Affiliate（アフィリエイト）\nバリューコマース社およびファンコミュニケーションズ社が提供するアフィリエイト広告を指します。\n上記点で補足となります。\n社名を提示したのはあくまでも社内説明であるため、\n社外説明の場合は、社名ではなく、ASP（アフィリエイトサービスプロバイダー）が提供するアフィリエイト広告にとどめていた方が良いかと思います。",
+    "img": ""
+  },
+  {
+    "id": "0014",
+    "cat1": "クーポン",
+    "cat2": "クーポンPush",
+    "cat3": "設定",
+    "question": "イベントとプロモーションでは、クーポンの発行方法について",
+    "answer": "\nプロモーション:クーポンPush申し込みにて発行(https://qsm.qoo10.jp/GMKT.INC.Gsm.Web/Seller/MySellerCouponMail.aspx)\nイベント：VIP、ショップページ、企画展ページなどでクーポン発行を申請すると、途中で設定したイベント応募に応じてクーポンが発行されます。",
+    "img": ""
+  },
+  {
+    "id": "0015",
+    "cat1": "クーポン",
+    "cat2": "クーポンPush",
+    "cat3": "定義",
+    "question": "プロモーション>クーポンPush発送の画面について、\nSHOPクーポン欄に「クーポンの送信は申込翌日の午前に行われます。 」との記載がありますが、そもそもクーポンPUSHは送信希望時間に設定できるため、\n発送希望の時間に設定していただいた時間にPUSHのお知らせができると同時に、お客様側でクーポンを確認できると思っていたので、その説明文がどのような意味なのか",
+    "answer": "発送時間は10:00~22:00以内で30分単位で選択可能ですが、\nもし発送時間を選ばなかった場合は、翌日の午前中に送られるという内容です。",
+    "img": ""
+  },
+  {
+    "id": "0016",
+    "cat1": "クーポン",
+    "cat2": "クーポンPush",
+    "cat3": "定義",
+    "question": "①総数量と成功数量の意味についてご説明いただけますでしょうか。\n②クーポンPUSH配信後、購入者が該当クーポンを受け取った場合、成功数が増加する仕組みでしょうか。\n③発行時にシステムエラーが発生していなかったかについても、あわせてご確認いただけますでしょうか。",
+    "answer": "①総数量は、メール配信の総配信対象者数を指します。\n成功数量は、該当の対象者に実際にメールが送信された件数となります。\n②メールが送信された時点で、成功数が増加します。\n③該当内容を確認したところ、メール配信日である21日の配信時点にエラーが発生していた可能性があるようです。",
+    "img": ""
+  },
+  {
+    "id": "0017",
+    "cat1": "クーポン",
+    "cat2": "クーポンPush",
+    "cat3": "設定",
+    "question": "申請回数",
+    "answer": "発送対象が30万名の場合、申請完了まで最大3分程度必要（それ以上は少し遅くなる可能性あり）\nショップクーポンPush 週2回申請",
+    "img": ""
+  },
+  {
+    "id": "0018",
+    "cat1": "クーポン",
+    "cat2": "ショップクーポン",
+    "cat3": "システム仕様",
+    "question": "トラフィックに備える",
+    "answer": "メガ割時の負荷イシューを最小化するためにショップクーポン事前発行プロセスが追加されました。\nQSM>クーポンPushで発行要請された件に限り、メガ割の1週間前に事前発行(普段はクーポンボックスに進入する時に発行)\n2024年第4四半期メガワリから施行予定",
+    "img": ""
+  },
+  {
+    "id": "0019",
+    "cat1": "クーポン",
+    "cat2": "ショップクーポン",
+    "cat3": "基準",
+    "question": "ショップクーポン発行仕組み",
+    "answer": "ショップクーポンは、お客様がMyクーポンボックスにアクセスした際に、最大2週間前に発送されたショップクーポンを発行される仕組みになっております。\n使用期限が切れても発行され、お問い合わせ頂いたクーポンは15日まで使用可能なので、購入したお客様にはすぐに期限切れと表示されます。\nまた担当部署にで確認いたしましたところ、使用できない時点である12/16 ~ 12/28の合計366件が発行されており、こちらのクーポンはすべて未使用(使用不可)の状態でございます。\n",
+    "img": ""
+  },
+  {
+    "id": "0020",
+    "cat1": "クーポン",
+    "cat2": "ショップクーポン",
+    "cat3": "ルール",
+    "question": "設定ルール、制限",
+    "answer": "・ショップクーポンの使用開始日時が2025/07/01 00時ですが、イベント開始日時が2025/06/3000時で、クーポン使用開始日時より早いため設定ができません。\n\n・ショップクーポンの期間設定には制限がありません。 ただ、クーポン発行時点から30日間だけ使用できるように設定することはできます。 イベントは最大30日間設定可能です。",
+    "img": ""
+  },
+  {
+    "id": "0021",
+    "cat1": "クーポン",
+    "cat2": "補償クーポン",
+    "cat3": "基準",
+    "question": "発行枚数",
+    "answer": "補償クーポンは一ヶ月間1,000枚まで発行可能です。",
+    "img": ""
+  },
+  {
+    "id": "0022",
+    "cat1": "条件付き特典",
+    "cat2": "条件付き特典",
+    "cat3": "設定",
+    "question": "削除可否",
+    "answer": "「設定済みの条件付き特典については削除」はできず、期間満了や使用のNに変更",
+    "img": ""
+  },
+  {
+    "id": "0023",
+    "cat1": "Megaプロモーション",
+    "cat2": "メガデビュー",
+    "cat3": "お問い合わせ先",
+    "question": "提案書とお問い合わせ先",
+    "answer": "よくあるお問い合わせにつきましては、引き続きカテゴリー担当までお問い合わせいただくようご案内のほどよろしくお願いいたします。\nまた、参考資料として韓国語・日本語の提案書をご参照ください。\n※提案書は販売店様への案内資料としてご提供可能ですが、具体的な操作手順（商品変更可否など）については、引き続きカテゴリー担当までご案内いただきますようお願いいたします。\n・Mega debutの詳細確認希望\n・Mega debut参加希望（基準確認）\n・すでに参加が決まっているが、広告商品変更依頼\n \n提案書：\nKR : https://dp.image-qoo10.jp/dp2016/JP/design/MEGADEBUT/Qoo10_MEGADEBUT_Proposal_KR_2501.pdf\nJP : https://dp.image-qoo10.jp/dp2016/JP/design/MEGADEBUT/Qoo10_MEGADEBUT_Proposal_JP_2501.pdf",
+    "img": ""
+  },
+  {
+    "id": "0024",
+    "cat1": "割引",
+    "cat2": "一般割引",
+    "cat3": "設定",
+    "question": "割引の確認方法",
+    "answer": "Item History＞商品番号を検索し、Snap Typeが「Order」の件をクリックし、「Order Sell」にで、「CMS Rate」を確認します。10の場合は、10％を設定しているとのことです。",
+    "img": ""
+  },
+  {
+    "id": "0025",
+    "cat1": "外部広告",
+    "cat2": "SingleOne AD",
+    "cat3": "お問い合わせ先",
+    "question": "お問い合わせ先",
+    "answer": "関連お問合せは販売店が直接下記各お問合せ先にお問合せするように案内お願いいたします。\n\n広告に関する各種お問い合わせ先(韓国語・日本語対応可能) : qoo10_singleone_cs@a1mediagroup.co.kr\n決済完了ページ広告のお問い合わせ先： : qoo10_retail@a1mediagroup.co.kr",
+    "img": ""
+  },
+  {
+    "id": "0026",
+    "cat1": "サンプルマーケット",
+    "cat2": "サンプルマーケット",
+    "cat3": "参加提案書",
+    "question": "参加提案書",
+    "answer": "KR : https://dp.image-qoo10.jp/dp2016/JP/design/SMarket/SampleMarket_Proposal_KR_2025_10.pdf\nJP : https://dp.image-qoo10.jp/dp2016/JP/design/SMarket/SampleMarket_Proposal_JP_2025_10.pdf\n更新ポイント：\nレビュー作成率の数値更新、送料無料コード関連の詳細案内追加、サンプルマーケット当選者確認方法追加、サンプル代表画像に関するガイドライン追加",
+    "img": ""
+  },
+  {
+    "id": "0027",
+    "cat1": "サンプルマーケット",
+    "cat2": "サンプルマーケット",
+    "cat3": "設定",
+    "question": "自動キャンセルされた理由",
+    "answer": "商品の販売状態が変更され(販売待機状態)であり、販売可能な状態でなかったため\nサンプルに申請した販売商品を「販売不可」のステータスに変更すると、応募および抽選ができなくなります。\n(一度ステータスを変更すると再開することできないため、申請後から当選者発表までは必ず「販売中」のステータスを維持してください。)",
+    "img": ""
+  },
+  {
+    "id": "0028",
+    "cat1": "サンプルマーケット",
+    "cat2": "サンプルマーケット",
+    "cat3": "ルール",
+    "question": "参加制限の除外依頼",
+    "answer": "お客様の長期不在により配送ができず、再送不要でBuyerから参加制限の除外依頼⇒お客様都合対応不可",
+    "img": ""
+  },
+  {
+    "id": "0029",
+    "cat1": "サンプルマーケット",
+    "cat2": "サンプルマーケット",
+    "cat3": "設定",
+    "question": "送料無料と送料コード",
+    "answer": "①送料コードの中から「無料（オプション配送無し）送料コードの並び順で一番低めのコードが自動採用」/申請時の送料コードの中で完全無料かつ一番小さい番号の配送コードが適用される⇒販売店ごとに送料グループも多く、無料コードも多数あるため、混乱を防ぐために採用\n②販売店様から配送方法(追跡×>〇へ変更)の依頼があった場合は、CXで対応可能\n③送料コードが確定される時点は【サンプルマーケット申請時】⇒申請時に自動適用された送料コードが修正又は削除されないようご案内\n④韓ダッシュの送料コードは適用されません。",
+    "img": ""
+  },
+  {
+    "id": "0030",
+    "cat1": "サンプルマーケット",
+    "cat2": "レビューイベント",
+    "cat3": "基準",
+    "question": "サプリ／ダイエットカテゴリ商品のリアルレビュー反映スケジュール",
+    "answer": "告知：https://qsm.qoo10.jp/GMKT.INC.Gsm.Web/Popup/Common/pop_Notice.aspx?nid=5723)\n現在、当該カテゴリ商品のリアルレビュー反映は2026年1月13日を予定しております。",
+    "img": ""
+  },
+  {
+    "id": "0031",
+    "cat1": "サンプルマーケット",
+    "cat2": "レビューイベント",
+    "cat3": "設定",
+    "question": "レビューの選択ができない",
+    "answer": "イベント期間の翌日を発表日に設定しており、レビュー選択をしようとすると「当選日以降はベストレビューを選定できません」と表示され\n⇒発表日項目の下の注意事項にも「発表日までに当選者をすべて選んでください。」と案内があるため、期限まで選択されていない場合は別途対応不可",
+    "img": ""
+  },
+  {
+    "id": "0032",
+    "cat1": "サンプルマーケット",
+    "cat2": "拒否理由",
+    "cat3": "ルール",
+    "question": "アップロードした商品説明画像のデータの形式の問題",
+    "answer": "①具体的にはアップロードされた画像が一般的な方式ではない、\n特殊な形式（base64エンコーディング）にてアップロードされていて、\n該当の特殊な形式を一般画像にて変換してくれる機能が無いためプレビューにも空欄で表示されていました。\n⇒\n同じ日の掲載につきましては、\nセラー様が「サンプルマーケット担当者が該当販売店のQSMに接続し、代わりにサンプルマーケット実施枠を確保すること」につきまして承諾してくださると、こちら側で同じ日に掲載できるよう対応させていただきたいと存じます。",
+    "img": ""
+  },
+  {
+    "id": "0033",
+    "cat1": "サンプルマーケット",
+    "cat2": "拒否理由",
+    "cat3": "ルール",
+    "question": "サンプル商品の問題によりキャンセル",
+    "answer": "商品の販売ステータスを「販売中又は販売中（品切れ）」以外のステータスに変更したため、システムにより自動キャンセル",
+    "img": ""
+  },
+  {
+    "id": "0034",
+    "cat1": "サンプルマーケット",
+    "cat2": "拒否理由",
+    "cat3": "基準",
+    "question": " ＜代表画像ガイド違反＞\n①\t製品画像の大きさよりシートマスク（７枚）の大きさが大きく見える\n②\tシートマスクを７枚全部挿入不可",
+    "answer": "\n【修正】\nシートマスク画像を１枚のみに調整するか、無しで製品画像を現状よりサイズUP",
+    "img": ""
+  }
+];
+
+    const ALL_CATEGORIES = "すべて";
+    let currentCategory = ALL_CATEGORIES;
+    let searchTerm = "";
+    
+    const els = {
+        searchInput: document.getElementById('searchInput'),
+        categoryList: document.getElementById('categoryList'),
+        qaGrid: document.getElementById('qaGrid'),
+        currentCategoryTitle: document.getElementById('currentCategoryTitle'),
+        resultStats: document.getElementById('resultStats'),
+        sidebar: document.getElementById('sidebar'),
+        menuToggle: document.getElementById('menuToggle'),
+        mainContent: document.getElementById('mainContent')
+    };
+
+    function init() {
+        renderSidebar();
+        renderQA();
+        
+        els.searchInput.addEventListener('input', handleSearch);
+        els.menuToggle.addEventListener('click', toggleMobileMenu);
+        els.mainContent.addEventListener('click', () => {
+            if (els.sidebar.classList.contains('open')) {
+                els.sidebar.classList.remove('open');
+            }
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.toString()
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function highlightText(text, query) {
+        if (!query || query.trim() === "") return escapeHtml(text);
+        const escapedText = escapeHtml(text);
+        const escapedQuery = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        return escapedText.replace(regex, '<mark>$1</mark>');
+    }
+
+    // cat1 を基準にカウントする
+    function getCategoryCounts() {
+        const counts = rawData.reduce((acc, item) => {
+            const cat = item.cat1 || '未分類';
+            acc[cat] = (acc[cat] || 0) + 1;
+            return acc;
+        }, {});
+        counts[ALL_CATEGORIES] = rawData.length;
+        return counts;
+    }
+
+    function getFilteredData() {
+        return rawData.filter(item => {
+            const itemCat1 = item.cat1 || '未分類';
+            const categoryMatch = (currentCategory === ALL_CATEGORIES) || (itemCat1 === currentCategory);
+            
+            let searchMatch = true;
+            if (searchTerm) {
+                const lowerSearch = searchTerm.toLowerCase();
+                searchMatch = (item.question || "").toLowerCase().includes(lowerSearch) || 
+                              (item.answer || "").toLowerCase().includes(lowerSearch) ||
+                              (item.cat1 || "").toLowerCase().includes(lowerSearch) ||
+                              (item.cat2 || "").toLowerCase().includes(lowerSearch) ||
+                              (item.cat3 || "").toLowerCase().includes(lowerSearch);
+            }
+            return categoryMatch && searchMatch;
+        });
+    }
+
+    function renderSidebar() {
+        const counts = getCategoryCounts();
+        const categories = [...new Set(rawData.map(item => item.cat1 || '未分類'))].sort();
+        const finalCategories = [ALL_CATEGORIES, ...categories];
+
+        els.categoryList.innerHTML = finalCategories.map(cat => `
+            <li class="category-item ${cat === currentCategory ? 'active' : ''}" data-category="${escapeHtml(cat)}">
+                <span>${escapeHtml(cat)}</span>
+                <span class="category-count">${counts[cat] || 0}</span>
+            </li>
+        `).join('');
+
+        document.querySelectorAll('.category-item').forEach(el => {
+            el.addEventListener('click', () => {
+                currentCategory = el.dataset.category;
+                els.sidebar.classList.remove('open');
+                renderSidebar();
+                renderQA();
+            });
+        });
+    }
+
+    function renderQA() {
+        const filteredData = getFilteredData();
+        
+        els.currentCategoryTitle.textContent = currentCategory;
+        
+        if (searchTerm) {
+            els.resultStats.innerHTML = `「<b>${escapeHtml(searchTerm)}</b>」の検索結果: <b>${filteredData.length}</b> 件`;
+        } else {
+            els.resultStats.textContent = `全 ${filteredData.length} 件`;
+        }
+
+        if (filteredData.length === 0) {
+            els.qaGrid.innerHTML = `
+                <div class="no-results">
+                    <span class="no-results-icon">∅</span>
+                    <h3>一致する質問が見つかりませんでした</h3>
+                    <p>別のキーワードをお試しいただくか、カテゴリーを変更してください。</p>
+                </div>
+            `;
+            return;
+        }
+
+        els.qaGrid.innerHTML = filteredData.map(item => `
+            <div class="qa-card" data-id="${item.id}">
+                <div class="qa-header">
+                    <span class="question-icon" aria-hidden="true">Q.</span>
+                    <h3 class="qa-question">${highlightText(item.question, searchTerm)}</h3>
+                </div>
+                <div class="qa-body">
+                    <span class="answer-icon" aria-hidden="true">A.</span>
+                    <p class="qa-answer">${highlightText(item.answer, searchTerm)}</p>
+                </div>
+                <div class="qa-footer">
+                    <div class="qa-breadcrumb">
+                        <span>${highlightText(item.cat1, searchTerm)}</span>
+                        <span>${highlightText(item.cat2, searchTerm)}</span>
+                        <span>${highlightText(item.cat3, searchTerm)}</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function handleSearch(e) {
+        searchTerm = e.target.value;
+        renderQA();
+    }
+
+    function toggleMobileMenu() {
+        els.sidebar.classList.toggle('open');
+    }
+
+    init();
+
+</script>
+</body>
+</html>
